@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "UserStats": {
+      "title": "User Stats",
+      "description": "Gamification stats for a user.",
+      "type": "object",
+      "properties": {
+        "xp": { "type": "integer", "description": "Total experience points." },
+        "level": { "type": "integer", "description": "Current viewer level." },
+        "streak": { "type": "integer", "description": "Current daily viewing streak." },
+        "lastCheckIn": { "type": "string", "format": "date-time", "description": "ISO string of the last check-in." },
+        "achievements": { "type": "array", "items": { "type": "string" }, "description": "List of unlocked achievements." },
+        "uid": { "type": "string", "description": "The user's unique ID." }
+      },
+      "required": ["xp", "level", "streak", "lastCheckIn", "uid"]
+    },
+    "UserPreferences": {
+      "title": "User Preferences",
+      "description": "User-specific settings and favorites.",
+      "type": "object",
+      "properties": {
+        "favoriteChannels": { "type": "array", "items": { "type": "string" }, "description": "List of favorite channel IDs." },
+        "theme": { "type": "string", "enum": ["dark", "light"], "description": "Preferred UI theme." },
+        "notificationsEnabled": { "type": "boolean", "description": "Whether notifications are enabled." },
+        "uid": { "type": "string", "description": "The user's unique ID." }
+      },
+      "required": ["favoriteChannels", "uid"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/stats/main": {
+      "schema": "UserStats",
+      "description": "User's gamification statistics."
+    },
+    "/users/{userId}/preferences/main": {
+      "schema": "UserPreferences",
+      "description": "User's application settings and favorites."
+    }
+  }
+}

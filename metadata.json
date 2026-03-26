@@ -1,0 +1,5 @@
+{
+  "name": "Freeview Play+",
+  "description": "A gamified TV guide with offline support, personalized preferences, and rewarding viewing streaks.",
+  "requestFramePermissions": ["geolocation"]
+}
