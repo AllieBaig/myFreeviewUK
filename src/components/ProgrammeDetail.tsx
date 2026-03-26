@@ -8,12 +8,18 @@ interface ProgrammeDetailProps {
   programme: Programme | null;
   onClose: () => void;
   onCheckIn: (p: Programme) => void;
+  onPlay: (p: Programme) => void;
 }
 
-export const ProgrammeDetail: React.FC<ProgrammeDetailProps> = ({ programme, onClose, onCheckIn }) => {
+export const ProgrammeDetail: React.FC<ProgrammeDetailProps> = ({ programme, onClose, onCheckIn, onPlay }) => {
   if (!programme) return null;
 
   const channel = CHANNELS.find(c => c.id === programme.channelId);
+
+  const handlePlay = () => {
+    onPlay(programme);
+    onClose();
+  };
 
   return (
     <AnimatePresence>
@@ -65,11 +71,11 @@ export const ProgrammeDetail: React.FC<ProgrammeDetailProps> = ({ programme, onC
 
             <div className="flex items-center gap-4">
               <button 
-                onClick={() => onCheckIn(programme)}
+                onClick={handlePlay}
                 className="flex-grow flex items-center justify-center gap-3 px-8 py-4 bg-blue-600 hover:bg-blue-500 rounded-2xl font-bold transition-all active:scale-95 shadow-[0_0_30px_rgba(37,99,235,0.4)]"
               >
                 <Play size={20} fill="currentColor" />
-                Watch & Earn +50 XP
+                Watch Now & Earn +50 XP
               </button>
               <button className="p-4 bg-white/5 hover:bg-white/10 rounded-2xl border border-white/10 transition-all">
                 <Heart size={20} />

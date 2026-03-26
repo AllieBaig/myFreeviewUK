@@ -6,7 +6,7 @@ import { GamificationHeader } from './components/GamificationHeader';
 import { ProgrammeDetail } from './components/ProgrammeDetail';
 import { ProfileView } from './components/ProfileView';
 import { motion, AnimatePresence } from 'motion/react';
-import { Tv, Search, Settings, Bell, Calendar, User } from 'lucide-react';
+import { Tv, Search, Settings, Bell, Calendar, User, Play } from 'lucide-react';
 import { get, set } from 'idb-keyval';
 
 const STATS_KEY = 'freeview_user_stats';
@@ -17,6 +17,7 @@ export default function App() {
   const [programmes, setProgrammes] = useState<Programme[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProgramme, setSelectedProgramme] = useState<Programme | null>(null);
+  const [playingProgramme, setPlayingProgramme] = useState<Programme | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [stats, setStats] = useState<UserStats>({
     xp: 1250,
@@ -70,6 +71,12 @@ export default function App() {
     setSelectedProgramme(null);
   };
 
+  const handlePlay = (p: Programme) => {
+    setPlayingProgramme(p);
+    // Auto check-in when playing
+    handleCheckIn(p);
+  };
+
   if (loading) {
     return (
       <div className="h-screen w-screen bg-[#0a0a0a] flex flex-col items-center justify-center gap-4">
@@ -121,9 +128,49 @@ export default function App() {
         </nav>
 
         {/* Main Content Area */}
-        <main className="flex-grow flex flex-col overflow-hidden">
+        <main className="flex-grow flex flex-col overflow-hidden relative">
           <GamificationHeader stats={stats} onProfileClick={() => setView('profile')} />
           
+          {/* Dynamic Mini Player */}
+          <AnimatePresence>
+            {playingProgramme && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="bg-black border-b border-white/10 overflow-hidden relative group"
+              >
+                <div className="aspect-video w-full max-h-[40vh] relative">
+                  <img 
+                    src={`https://picsum.photos/seed/${playingProgramme.id}/1920/1080?blur=2`} 
+                    className="w-full h-full object-cover opacity-50"
+                    alt=""
+                  />
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
+                      <Play size={40} fill="white" className="ml-2" />
+                    </div>
+                  </div>
+                  <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black to-transparent">
+                    <div className="flex items-end justify-between">
+                      <div>
+                        <span className="px-2 py-1 bg-red-600 text-[10px] font-black uppercase rounded mb-2 inline-block">Live Stream</span>
+                        <h2 className="text-3xl font-black tracking-tighter">{playingProgramme.title}</h2>
+                        <p className="text-sm opacity-60 max-w-2xl mt-2">{playingProgramme.description}</p>
+                      </div>
+                      <button 
+                        onClick={() => setPlayingProgramme(null)}
+                        className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-xs font-bold transition-all"
+                      >
+                        Close Stream
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           <div className="flex-grow relative overflow-hidden">
             <AnimatePresence mode="wait">
               {view === 'epg' ? (
@@ -137,6 +184,7 @@ export default function App() {
                   <ProgrammeGrid 
                     programmes={programmes} 
                     onProgrammeSelect={setSelectedProgramme}
+                    onProgrammePlay={handlePlay}
                     favorites={favorites}
                     toggleFavorite={toggleFavorite}
                   />
@@ -162,6 +210,7 @@ export default function App() {
         programme={selectedProgramme} 
         onClose={() => setSelectedProgramme(null)}
         onCheckIn={handleCheckIn}
+        onPlay={handlePlay}
       />
 
       <style dangerouslySetInnerHTML={{ __html: `
