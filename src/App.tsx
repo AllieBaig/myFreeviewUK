@@ -14,6 +14,7 @@ const PREFS_KEY = 'freeview_user_prefs';
 
 export default function App() {
   const [view, setView] = useState<'epg' | 'profile'>('epg');
+  const [category, setCategory] = useState<string>('All');
   const [programmes, setProgrammes] = useState<Programme[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProgramme, setSelectedProgramme] = useState<Programme | null>(null);
@@ -131,6 +132,24 @@ export default function App() {
         <main className="flex-grow flex flex-col overflow-hidden relative">
           <GamificationHeader stats={stats} onProfileClick={() => setView('profile')} />
           
+          {/* Category Filter */}
+          <div className="flex items-center gap-2 px-6 py-3 bg-[#0d0d0d] border-b border-white/5 overflow-x-auto no-scrollbar">
+            {['All', 'Movies', 'TV Shows', 'Reality', 'News', 'Drama', 'Sports', 'Documentary'].map(cat => (
+              <button
+                key={cat}
+                onClick={() => setCategory(cat)}
+                className={cn(
+                  "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
+                  category === cat 
+                    ? "bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.3)]" 
+                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white"
+                )}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
           {/* Dynamic Mini Player */}
           <AnimatePresence>
             {playingProgramme && (
@@ -187,6 +206,7 @@ export default function App() {
                     onProgrammePlay={handlePlay}
                     favorites={favorites}
                     toggleFavorite={toggleFavorite}
+                    category={category}
                   />
                 </motion.div>
               ) : (

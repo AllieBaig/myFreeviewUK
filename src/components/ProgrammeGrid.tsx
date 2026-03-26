@@ -11,6 +11,7 @@ interface ProgrammeGridProps {
   onProgrammePlay: (p: Programme) => void;
   favorites: string[];
   toggleFavorite: (id: string) => void;
+  category: string;
 }
 
 export const ProgrammeGrid: React.FC<ProgrammeGridProps> = ({ 
@@ -18,7 +19,8 @@ export const ProgrammeGrid: React.FC<ProgrammeGridProps> = ({
   onProgrammeSelect,
   onProgrammePlay,
   favorites,
-  toggleFavorite
+  toggleFavorite,
+  category
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date());
   
@@ -30,6 +32,11 @@ export const ProgrammeGrid: React.FC<ProgrammeGridProps> = ({
   const getNowAndNext = (channelId: string) => {
     const channelProgrammes = programmes
       .filter(p => p.channelId === channelId)
+      .filter(p => {
+        if (category === 'All') return true;
+        if (category === 'TV Shows') return !['Movies', 'Sports', 'News'].includes(p.genre);
+        return p.genre === category;
+      })
       .sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
 
     const now = channelProgrammes.find(p => 
@@ -66,7 +73,27 @@ export const ProgrammeGrid: React.FC<ProgrammeGridProps> = ({
 
       {/* Grid Content */}
       <div className="flex-grow overflow-y-auto custom-scrollbar">
-        {CHANNELS.map(channel => {
+        {CHANNELS.filter(channel => {
+          if (category === 'All') return true;
+          return programmes.some(p => {
+            if (p.channelId !== channel.id) return false;
+            if (category === 'TV Shows') return !['Movies', 'Sports', 'News'].includes(p.genre);
+            return p.genre === category;
+          });
+        }).length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full opacity-20 py-20">
+            <Info size={48} className="mb-4" />
+            <p className="text-xl font-black uppercase tracking-widest">No {category} Found</p>
+            <p className="text-xs mt-2">Try a different category or check back later</p>
+          </div>
+        ) : CHANNELS.filter(channel => {
+          if (category === 'All') return true;
+          return programmes.some(p => {
+            if (p.channelId !== channel.id) return false;
+            if (category === 'TV Shows') return !['Movies', 'Sports', 'News'].includes(p.genre);
+            return p.genre === category;
+          });
+        }).map(channel => {
           const { now, next } = getNowAndNext(channel.id);
           
           return (
