@@ -6,7 +6,7 @@ import { GamificationHeader } from './components/GamificationHeader';
 import { ProgrammeDetail } from './components/ProgrammeDetail';
 import { ProfileView } from './components/ProfileView';
 import { motion, AnimatePresence } from 'motion/react';
-import { Tv, Search, Settings, Bell, Calendar, User, Play } from 'lucide-react';
+import { Tv, Search, Settings, Bell, Calendar, User, Play, WifiOff, Share, X } from 'lucide-react';
 import { get, set } from 'idb-keyval';
 
 const STATS_KEY = 'freeview_user_stats';
@@ -17,6 +17,7 @@ export default function App() {
   const [category, setCategory] = useState<string>('All');
   const [programmes, setProgrammes] = useState<Programme[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(!navigator.onLine);
   const [selectedProgramme, setSelectedProgramme] = useState<Programme | null>(null);
   const [playingProgramme, setPlayingProgramme] = useState<Programme | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -29,7 +30,28 @@ export default function App() {
     uid: 'local-user'
   });
 
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+
   useEffect(() => {
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    // iOS PWA Detection
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+    
+    if (isIOS && !isStandalone) {
+      const lastPrompt = localStorage.getItem('ios-install-prompt-last-shown');
+      const now = Date.now();
+      // Show prompt if not shown in the last 24 hours
+      if (!lastPrompt || now - parseInt(lastPrompt) > 24 * 60 * 60 * 1000) {
+        setShowInstallPrompt(true);
+      }
+    }
+
     const loadData = async () => {
       try {
         const [scheduleData, savedStats, savedPrefs] = await Promise.all([
@@ -48,6 +70,11 @@ export default function App() {
       }
     };
     loadData();
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   const toggleFavorite = async (channelId: string) => {
@@ -131,6 +158,24 @@ export default function App() {
         {/* Main Content Area */}
         <main className="flex-grow flex flex-col overflow-hidden relative">
           <GamificationHeader stats={stats} onProfileClick={() => setView('profile')} />
+          
+          {/* Offline Indicator */}
+          <AnimatePresence>
+            {isOffline && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2 flex items-center gap-3"
+              >
+                <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <WifiOff size={14} className="text-amber-500" />
+                <span className="text-[10px] font-bold uppercase tracking-widest text-amber-500/80">
+                  Offline Mode — Using Cached Schedule
+                </span>
+              </motion.div>
+            )}
+          </AnimatePresence>
           
           {/* Category Filter */}
           <div className="flex items-center gap-2 px-6 py-3 bg-[#0d0d0d] border-b border-white/5 overflow-x-auto no-scrollbar">
@@ -232,6 +277,52 @@ export default function App() {
         onCheckIn={handleCheckIn}
         onPlay={handlePlay}
       />
+
+      {/* iOS Install Prompt */}
+      <AnimatePresence>
+        {showInstallPrompt && (
+          <motion.div 
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-6 left-6 right-6 z-[100] bg-white text-black p-6 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col gap-4"
+          >
+            <div className="flex items-start justify-between">
+              <div className="flex gap-4">
+                <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center shrink-0">
+                  <Tv className="text-white" size={24} />
+                </div>
+                <div>
+                  <h3 className="font-black text-lg leading-tight">Install Freeview+</h3>
+                  <p className="text-xs opacity-60 font-medium">Add to home screen for the full offline experience.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => {
+                  setShowInstallPrompt(false);
+                  localStorage.setItem('ios-install-prompt-last-shown', Date.now().toString());
+                }}
+                className="p-1 hover:bg-black/5 rounded-full transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="bg-black/5 p-4 rounded-2xl flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest">
+              <div className="flex flex-col items-center gap-1">
+                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-black/10">
+                  <Share size={14} />
+                </div>
+                <span>Share</span>
+              </div>
+              <div className="h-8 w-px bg-black/10" />
+              <div className="flex-grow">
+                Tap the share button below and select <span className="text-blue-600">"Add to Home Screen"</span>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }

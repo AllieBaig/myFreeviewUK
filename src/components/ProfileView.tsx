@@ -1,7 +1,7 @@
 import React from 'react';
 import { UserStats, CHANNELS } from '../types';
 import { motion } from 'motion/react';
-import { Trophy, Flame, Star, Zap, Clock, Shield, HardDrive, WifiOff } from 'lucide-react';
+import { Trophy, Flame, Star, Zap, Clock, Shield, HardDrive, WifiOff, RefreshCcw, Trash2 } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface ProfileViewProps {
@@ -168,6 +168,36 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ stats, favorites }) =>
             <span className="text-xl font-black">{format(new Date(stats.lastCheckIn), 'HH:mm')}</span>
             <p className="text-[10px] opacity-40 mt-1">{format(new Date(stats.lastCheckIn), 'MMM dd, yyyy')}</p>
           </div>
+        </motion.div>
+
+        {/* System Actions */}
+        <motion.div 
+          variants={itemVariants}
+          className="col-span-1 md:col-span-2 lg:col-span-4 bg-[#1a1a1a] rounded-[2.5rem] p-8 border border-white/5 flex flex-col md:flex-row gap-4"
+        >
+          <button 
+            onClick={() => window.location.reload()}
+            className="flex-grow flex items-center justify-center gap-3 py-4 bg-white/5 hover:bg-white/10 rounded-2xl transition-all border border-white/5 group"
+          >
+            <RefreshCcw size={18} className="group-hover:rotate-180 transition-transform duration-500" />
+            <span className="text-xs font-black uppercase tracking-widest">Refresh Application</span>
+          </button>
+          
+          <button 
+            onClick={() => {
+              if (confirm('Are you sure you want to clear all data and cache? This will reset your progress and favorites.')) {
+                localStorage.clear();
+                if ('indexedDB' in window) {
+                  indexedDB.deleteDatabase('keyval-store');
+                }
+                window.location.reload();
+              }
+            }}
+            className="flex-grow flex items-center justify-center gap-3 py-4 bg-red-500/5 hover:bg-red-500/10 text-red-500 rounded-2xl transition-all border border-red-500/10 group"
+          >
+            <Trash2 size={18} className="group-hover:scale-110 transition-transform" />
+            <span className="text-xs font-black uppercase tracking-widest">Clear Cache & Reset Data</span>
+          </button>
         </motion.div>
       </motion.div>
 
