@@ -6,15 +6,17 @@ import { GamificationHeader } from './components/GamificationHeader';
 import { ProgrammeDetail } from './components/ProgrammeDetail';
 import { ProfileView } from './components/ProfileView';
 import { motion, AnimatePresence } from 'motion/react';
-import { Tv, Search, Settings, Bell, Calendar, User, Play, WifiOff, Share, X } from 'lucide-react';
+import { Tv, Search, Settings, Bell, Calendar, User, Play, WifiOff, Share, X, Sun, Moon } from 'lucide-react';
 import { get, set } from 'idb-keyval';
 
 const STATS_KEY = 'freeview_user_stats';
 const PREFS_KEY = 'freeview_user_prefs';
+const THEME_KEY = 'freeview_theme';
 
 export default function App() {
   const [view, setView] = useState<'epg' | 'profile'>('epg');
   const [category, setCategory] = useState<string>('All');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [programmes, setProgrammes] = useState<Programme[]>([]);
   const [loading, setLoading] = useState(true);
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -54,15 +56,17 @@ export default function App() {
 
     const loadData = async () => {
       try {
-        const [scheduleData, savedStats, savedPrefs] = await Promise.all([
+        const [scheduleData, savedStats, savedPrefs, savedTheme] = await Promise.all([
           getTodaysSchedule(),
           get<UserStats>(STATS_KEY),
-          get<string[]>(PREFS_KEY)
+          get<string[]>(PREFS_KEY),
+          get<'dark' | 'light'>(THEME_KEY)
         ]);
 
         setProgrammes(scheduleData);
         if (savedStats) setStats(savedStats);
         if (savedPrefs) setFavorites(savedPrefs);
+        if (savedTheme) setTheme(savedTheme);
       } catch (error) {
         console.error('Failed to load data:', error);
       } finally {
@@ -99,10 +103,23 @@ export default function App() {
     setSelectedProgramme(null);
   };
 
-  const handlePlay = (p: Programme) => {
-    setPlayingProgramme(p);
-    // Auto check-in when playing
-    handleCheckIn(p);
+  const handlePlay = async (p: Programme) => {
+    const newXp = stats.xp + 100;
+    const newLevel = Math.floor(newXp / 1000) + 1;
+    const newStats = {
+      ...stats,
+      xp: newXp,
+      level: newLevel,
+    };
+    setStats(newStats);
+    await set(STATS_KEY, newStats);
+    console.log(`Playing: ${p.title}`);
+  };
+
+  const toggleTheme = async () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    await set(THEME_KEY, newTheme);
   };
 
   if (loading) {
@@ -121,37 +138,57 @@ export default function App() {
   }
 
   return (
-    <div className="h-screen w-screen flex flex-col bg-[#0a0a0a] text-white selection:bg-blue-500/30">
+    <div className={cn(
+      "h-screen w-screen flex flex-col transition-colors duration-500",
+      theme === 'dark' ? "bg-[#0a0a0a] text-white" : "bg-[#f5f5f5] text-black"
+    )}>
       <div className="flex flex-grow overflow-hidden">
         {/* Sidebar */}
-        <nav className="w-20 bg-[#111] border-r border-white/10 flex flex-col items-center py-8 gap-8">
+        <nav className={cn(
+          "w-20 border-r flex flex-col items-center py-8 gap-8 transition-colors",
+          theme === 'dark' ? "bg-[#111] border-white/10" : "bg-white border-black/5"
+        )}>
           <button 
             onClick={() => setView('epg')}
             className={cn(
               "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
-              view === 'epg' ? "bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.4)]" : "bg-white/5 opacity-40 hover:opacity-100"
+              view === 'epg' 
+                ? (theme === 'dark' ? "bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.4)] text-white" : "bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.2)] text-white")
+                : (theme === 'dark' ? "bg-white/5 opacity-40 hover:opacity-100 text-white" : "bg-black/5 opacity-40 hover:opacity-100 text-black")
             )}
           >
             <Tv size={20} />
           </button>
           
           <div className="flex flex-col gap-6 opacity-40">
-            <button className="p-2 hover:opacity-100 transition-opacity"><Search size={20} /></button>
-            <button className="p-2 hover:opacity-100 transition-opacity"><Calendar size={20} /></button>
-            <button className="p-2 hover:opacity-100 transition-opacity"><Bell size={20} /></button>
+            <button className={cn("p-2 hover:opacity-100 transition-opacity", theme === 'dark' ? "text-white" : "text-black")}><Search size={20} /></button>
+            <button className={cn("p-2 hover:opacity-100 transition-opacity", theme === 'dark' ? "text-white" : "text-black")}><Calendar size={20} /></button>
+            <button className={cn("p-2 hover:opacity-100 transition-opacity", theme === 'dark' ? "text-white" : "text-black")}><Bell size={20} /></button>
           </div>
           
           <div className="mt-auto flex flex-col gap-6 items-center pb-4">
             <button 
+              onClick={toggleTheme}
+              className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                theme === 'dark' ? "bg-white/5 text-yellow-400 hover:bg-white/10" : "bg-black/5 text-blue-600 hover:bg-black/10"
+              )}
+            >
+              {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+            </button>
+
+            <button 
               onClick={() => setView('profile')}
               className={cn(
                 "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
-                view === 'profile' ? "bg-purple-600 shadow-[0_0_20px_rgba(147,51,234,0.4)]" : "bg-white/5 opacity-40 hover:opacity-100"
+                view === 'profile' 
+                  ? (theme === 'dark' ? "bg-purple-600 shadow-[0_0_20px_rgba(147,51,234,0.4)] text-white" : "bg-purple-600 shadow-[0_0_20px_rgba(147,51,234,0.2)] text-white")
+                  : (theme === 'dark' ? "bg-white/5 opacity-40 hover:opacity-100 text-white" : "bg-black/5 opacity-40 hover:opacity-100 text-black")
               )}
             >
               <User size={20} />
             </button>
-            <button className="p-2 opacity-40 hover:opacity-100 transition-opacity"><Settings size={20} /></button>
+            <button className={cn("p-2 opacity-40 hover:opacity-100 transition-opacity", theme === 'dark' ? "text-white" : "text-black")}><Settings size={20} /></button>
           </div>
         </nav>
 
@@ -166,7 +203,10 @@ export default function App() {
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="bg-amber-500/10 border-b border-amber-500/20 px-6 py-2 flex items-center gap-3"
+                className={cn(
+                  "border-b px-6 py-2 flex items-center gap-3",
+                  theme === 'dark' ? "bg-amber-500/10 border-amber-500/20" : "bg-amber-500/5 border-amber-500/10"
+                )}
               >
                 <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
                 <WifiOff size={14} className="text-amber-500" />
@@ -178,16 +218,19 @@ export default function App() {
           </AnimatePresence>
           
           {/* Category Filter */}
-          <div className="flex items-center gap-2 px-6 py-3 bg-[#0d0d0d] border-b border-white/5 overflow-x-auto no-scrollbar">
-            {['All', 'Movies', 'TV Shows', 'Reality', 'News', 'Drama', 'Sports', 'Documentary'].map(cat => (
+          <div className={cn(
+            "flex items-center gap-2 px-6 py-3 border-b overflow-x-auto no-scrollbar transition-colors",
+            theme === 'dark' ? "bg-[#0d0d0d] border-white/5" : "bg-white border-black/5"
+          )}>
+            {['All', 'Favorites', 'Movies', 'TV Shows', 'Reality', 'News', 'Drama', 'Sports', 'Documentary'].map(cat => (
               <button
                 key={cat}
                 onClick={() => setCategory(cat)}
                 className={cn(
                   "px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
                   category === cat 
-                    ? "bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.3)]" 
-                    : "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white"
+                    ? (theme === 'dark' ? "bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.3)]" : "bg-black text-white shadow-[0_0_15px_rgba(0,0,0,0.1)]")
+                    : (theme === 'dark' ? "bg-white/5 text-white/40 hover:bg-white/10 hover:text-white" : "bg-black/5 text-black/40 hover:bg-black/10 hover:text-black")
                 )}
               >
                 {cat}
@@ -202,29 +245,42 @@ export default function App() {
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
-                className="bg-black border-b border-white/10 overflow-hidden relative group"
+                className={cn(
+                  "border-b overflow-hidden relative group transition-colors",
+                  theme === 'dark' ? "bg-black border-white/10" : "bg-white border-black/10"
+                )}
               >
                 <div className="aspect-video w-full max-h-[40vh] relative">
                   <img 
                     src={`https://picsum.photos/seed/${playingProgramme.id}/1920/1080?blur=2`} 
                     className="w-full h-full object-cover opacity-50"
                     alt=""
+                    referrerPolicy="no-referrer"
                   />
                   <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-md flex items-center justify-center border border-white/20">
-                      <Play size={40} fill="white" className="ml-2" />
+                    <div className={cn(
+                      "w-20 h-20 rounded-full backdrop-blur-md flex items-center justify-center border",
+                      theme === 'dark' ? "bg-white/10 border-white/20" : "bg-black/10 border-black/20"
+                    )}>
+                      <Play size={40} fill={theme === 'dark' ? "white" : "black"} className="ml-2" />
                     </div>
                   </div>
-                  <div className="absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t from-black to-transparent">
+                  <div className={cn(
+                    "absolute bottom-0 left-0 right-0 p-8 bg-gradient-to-t",
+                    theme === 'dark' ? "from-black to-transparent" : "from-white to-transparent"
+                  )}>
                     <div className="flex items-end justify-between">
                       <div>
-                        <span className="px-2 py-1 bg-red-600 text-[10px] font-black uppercase rounded mb-2 inline-block">Live Stream</span>
+                        <span className="px-2 py-1 bg-red-600 text-[10px] font-black uppercase rounded mb-2 inline-block text-white">Live Stream</span>
                         <h2 className="text-3xl font-black tracking-tighter">{playingProgramme.title}</h2>
-                        <p className="text-sm opacity-60 max-w-2xl mt-2">{playingProgramme.description}</p>
+                        <p className={cn("text-sm max-w-2xl mt-2", theme === 'dark' ? "opacity-60" : "opacity-80")}>{playingProgramme.description}</p>
                       </div>
                       <button 
                         onClick={() => setPlayingProgramme(null)}
-                        className="px-6 py-2 bg-white/10 hover:bg-white/20 rounded-full text-xs font-bold transition-all"
+                        className={cn(
+                          "px-6 py-2 rounded-full text-xs font-bold transition-all",
+                          theme === 'dark' ? "bg-white/10 hover:bg-white/20 text-white" : "bg-black/10 hover:bg-black/20 text-black"
+                        )}
                       >
                         Close Stream
                       </button>
@@ -252,6 +308,7 @@ export default function App() {
                     favorites={favorites}
                     toggleFavorite={toggleFavorite}
                     category={category}
+                    theme={theme}
                   />
                 </motion.div>
               ) : (
@@ -262,7 +319,7 @@ export default function App() {
                   exit={{ opacity: 0, y: -20 }}
                   className="h-full overflow-y-auto custom-scrollbar"
                 >
-                  <ProfileView stats={stats} favorites={favorites} />
+                  <ProfileView stats={stats} favorites={favorites} theme={theme} />
                 </motion.div>
               )}
             </AnimatePresence>
@@ -285,16 +342,22 @@ export default function App() {
             initial={{ y: 100, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-6 left-6 right-6 z-[100] bg-white text-black p-6 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col gap-4"
+            className={cn(
+              "fixed bottom-6 left-6 right-6 z-[100] p-6 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex flex-col gap-4",
+              theme === 'dark' ? "bg-white text-black" : "bg-black text-white"
+            )}
           >
             <div className="flex items-start justify-between">
               <div className="flex gap-4">
-                <div className="w-12 h-12 bg-black rounded-xl flex items-center justify-center shrink-0">
-                  <Tv className="text-white" size={24} />
+                <div className={cn(
+                  "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
+                  theme === 'dark' ? "bg-black" : "bg-white"
+                )}>
+                  <Tv className={theme === 'dark' ? "text-white" : "text-black"} size={24} />
                 </div>
                 <div>
                   <h3 className="font-black text-lg leading-tight">Install Freeview+</h3>
-                  <p className="text-xs opacity-60 font-medium">Add to home screen for the full offline experience.</p>
+                  <p className={cn("text-xs font-medium", theme === 'dark' ? "opacity-60" : "opacity-80")}>Add to home screen for the full offline experience.</p>
                 </div>
               </div>
               <button 
@@ -302,20 +365,26 @@ export default function App() {
                   setShowInstallPrompt(false);
                   localStorage.setItem('ios-install-prompt-last-shown', Date.now().toString());
                 }}
-                className="p-1 hover:bg-black/5 rounded-full transition-colors"
+                className={cn("p-1 rounded-full transition-colors", theme === 'dark' ? "hover:bg-black/5" : "hover:bg-white/10")}
               >
                 <X size={20} />
               </button>
             </div>
             
-            <div className="bg-black/5 p-4 rounded-2xl flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest">
+            <div className={cn(
+              "p-4 rounded-2xl flex items-center gap-4 text-[10px] font-bold uppercase tracking-widest",
+              theme === 'dark' ? "bg-black/5" : "bg-white/10"
+            )}>
               <div className="flex flex-col items-center gap-1">
-                <div className="w-8 h-8 bg-white rounded-lg flex items-center justify-center border border-black/10">
+                <div className={cn(
+                  "w-8 h-8 rounded-lg flex items-center justify-center border",
+                  theme === 'dark' ? "bg-white border-black/10" : "bg-black border-white/10"
+                )}>
                   <Share size={14} />
                 </div>
                 <span>Share</span>
               </div>
-              <div className="h-8 w-px bg-black/10" />
+              <div className={cn("h-8 w-px", theme === 'dark' ? "bg-black/10" : "bg-white/10")} />
               <div className="flex-grow">
                 Tap the share button below and select <span className="text-blue-600">"Add to Home Screen"</span>
               </div>
@@ -326,9 +395,9 @@ export default function App() {
 
       <style dangerouslySetInnerHTML={{ __html: `
         .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #0a0a0a; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #222; border-radius: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #333; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: ${theme === 'dark' ? '#0a0a0a' : '#f5f5f5'}; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: ${theme === 'dark' ? '#222' : '#ddd'}; border-radius: 4px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: ${theme === 'dark' ? '#333' : '#ccc'}; }
       `}} />
     </div>
   );
