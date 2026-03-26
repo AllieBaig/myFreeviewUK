@@ -1,16 +1,17 @@
 import React from 'react';
 import { UserStats, CHANNELS } from '../types';
 import { motion } from 'motion/react';
-import { Trophy, Flame, Star, Zap, Clock, Shield, HardDrive, WifiOff, RefreshCcw, Trash2 } from 'lucide-react';
+import { Trophy, Flame, Star, Zap, Clock, Shield, HardDrive, WifiOff, RefreshCcw, Trash2, Settings } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface ProfileViewProps {
   stats: UserStats;
   favorites: string[];
   theme: 'dark' | 'light';
+  onToggleLayout: () => void;
 }
 
-export const ProfileView: React.FC<ProfileViewProps> = ({ stats, favorites, theme }) => {
+export const ProfileView: React.FC<ProfileViewProps> = ({ stats, favorites, theme, onToggleLayout }) => {
   const favoriteChannelData = CHANNELS.filter(c => favorites.includes(c.id));
   const progress = (stats.xp % 1000) / 10;
 
@@ -236,6 +237,42 @@ export const ProfileView: React.FC<ProfileViewProps> = ({ stats, favorites, them
               theme === 'dark' ? "opacity-40" : "opacity-60"
             )}>{format(new Date(stats.lastCheckIn), 'MMM dd, yyyy')}</p>
           </div>
+        </motion.div>
+
+        {/* Layout Mode Toggle */}
+        <motion.div 
+          variants={itemVariants}
+          className={cn(
+            "col-span-1 md:col-span-2 lg:col-span-4 rounded-[2.5rem] p-8 border flex flex-col md:flex-row items-center justify-between gap-4 transition-colors",
+            theme === 'dark' ? "bg-[#1a1a1a] border-white/5" : "bg-white border-black/5"
+          )}
+        >
+          <div className="flex items-center gap-4">
+            <div className={cn(
+              "w-12 h-12 rounded-2xl flex items-center justify-center",
+              theme === 'dark' ? "bg-white/5" : "bg-black/5"
+            )}>
+              <Settings size={24} className={theme === 'dark' ? "text-blue-400" : "text-blue-600"} />
+            </div>
+            <div>
+              <h3 className="font-black">Minimal Interface</h3>
+              <p className={cn(
+                "text-xs",
+                theme === 'dark' ? "opacity-40" : "opacity-60"
+              )}>Show more channels on a single page by reducing UI elements.</p>
+            </div>
+          </div>
+          <button 
+            onClick={onToggleLayout}
+            className={cn(
+              "px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-xs transition-all",
+              stats.layoutMode === 'minimal'
+                ? "bg-blue-600 text-white shadow-lg shadow-blue-600/20"
+                : (theme === 'dark' ? "bg-white/5 hover:bg-white/10" : "bg-black/5 hover:bg-black/10")
+            )}
+          >
+            {stats.layoutMode === 'minimal' ? 'Enabled' : 'Disabled'}
+          </button>
         </motion.div>
 
         {/* System Actions */}

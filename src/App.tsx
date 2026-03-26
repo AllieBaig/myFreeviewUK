@@ -29,7 +29,8 @@ export default function App() {
     streak: 4,
     lastCheckIn: new Date().toISOString(),
     achievements: ['Early Bird', 'Drama King', 'Night Owl', 'News Junkie'],
-    uid: 'local-user'
+    uid: 'local-user',
+    layoutMode: 'standard'
   });
 
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
@@ -120,6 +121,13 @@ export default function App() {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     setTheme(newTheme);
     await set(THEME_KEY, newTheme);
+  };
+
+  const toggleLayoutMode = async () => {
+    const newMode = stats.layoutMode === 'minimal' ? 'standard' : 'minimal';
+    const newStats = { ...stats, layoutMode: newMode };
+    setStats(newStats);
+    await set(STATS_KEY, newStats);
   };
 
   if (loading) {
@@ -309,6 +317,7 @@ export default function App() {
                     toggleFavorite={toggleFavorite}
                     category={category}
                     theme={theme}
+                    layoutMode={stats.layoutMode}
                   />
                 </motion.div>
               ) : (
@@ -319,7 +328,12 @@ export default function App() {
                   exit={{ opacity: 0, y: -20 }}
                   className="h-full overflow-y-auto custom-scrollbar"
                 >
-                  <ProfileView stats={stats} favorites={favorites} theme={theme} />
+                  <ProfileView 
+                    stats={stats} 
+                    favorites={favorites} 
+                    theme={theme} 
+                    onToggleLayout={toggleLayoutMode}
+                  />
                 </motion.div>
               )}
             </AnimatePresence>
