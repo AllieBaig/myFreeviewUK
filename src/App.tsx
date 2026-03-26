@@ -4,85 +4,43 @@ import { getTodaysSchedule } from './services/offline';
 import { ProgrammeGrid } from './components/ProgrammeGrid';
 import { GamificationHeader } from './components/GamificationHeader';
 import { ProgrammeDetail } from './components/ProgrammeDetail';
+import { ProfileView } from './components/ProfileView';
 import { motion, AnimatePresence } from 'motion/react';
-import { Tv, Search, Settings, Bell, Calendar, LogIn, LogOut, User } from 'lucide-react';
-import { auth, db, signIn, signOut, handleFirestoreError, OperationType } from './firebase';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
-import { doc, onSnapshot, setDoc, getDoc } from 'firebase/firestore';
+import { Tv, Search, Settings, Bell, Calendar, User } from 'lucide-react';
+import { get, set } from 'idb-keyval';
+
+const STATS_KEY = 'freeview_user_stats';
+const PREFS_KEY = 'freeview_user_prefs';
 
 export default function App() {
-  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [view, setView] = useState<'epg' | 'profile'>('epg');
   const [programmes, setProgrammes] = useState<Programme[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedProgramme, setSelectedProgramme] = useState<Programme | null>(null);
   const [favorites, setFavorites] = useState<string[]>([]);
   const [stats, setStats] = useState<UserStats>({
-    xp: 0,
-    level: 1,
-    streak: 0,
+    xp: 1250,
+    level: 2,
+    streak: 4,
     lastCheckIn: new Date().toISOString(),
-    achievements: [],
-    uid: ''
+    achievements: ['Early Bird', 'Drama King', 'Night Owl', 'News Junkie'],
+    uid: 'local-user'
   });
-
-  // Auth Listener
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-      setUser(currentUser);
-      if (!currentUser) {
-        setLoading(false);
-      }
-    });
-    return () => unsubscribe();
-  }, []);
-
-  // Firestore Listeners
-  useEffect(() => {
-    if (!user) return;
-
-    const statsPath = `users/${user.uid}/stats/main`;
-    const prefsPath = `users/${user.uid}/preferences/main`;
-
-    const unsubStats = onSnapshot(doc(db, statsPath), (snapshot) => {
-      if (snapshot.exists()) {
-        setStats(snapshot.data() as UserStats);
-      } else {
-        // Initialize stats for new user
-        const initialStats: UserStats = {
-          xp: 0,
-          level: 1,
-          streak: 1,
-          lastCheckIn: new Date().toISOString(),
-          achievements: [],
-          uid: user.uid
-        };
-        setDoc(doc(db, statsPath), initialStats).catch(e => handleFirestoreError(e, OperationType.WRITE, statsPath));
-      }
-    }, (error) => handleFirestoreError(error, OperationType.GET, statsPath));
-
-    const unsubPrefs = onSnapshot(doc(db, prefsPath), (snapshot) => {
-      if (snapshot.exists()) {
-        setFavorites(snapshot.data().favoriteChannels || []);
-      } else {
-        // Initialize preferences for new user
-        const initialPrefs = { favoriteChannels: [], uid: user.uid };
-        setDoc(doc(db, prefsPath), initialPrefs).catch(e => handleFirestoreError(e, OperationType.WRITE, prefsPath));
-      }
-    }, (error) => handleFirestoreError(error, OperationType.GET, prefsPath));
-
-    return () => {
-      unsubStats();
-      unsubPrefs();
-    };
-  }, [user]);
 
   useEffect(() => {
     const loadData = async () => {
       try {
-        const data = await getTodaysSchedule();
-        setProgrammes(data);
+        const [scheduleData, savedStats, savedPrefs] = await Promise.all([
+          getTodaysSchedule(),
+          get<UserStats>(STATS_KEY),
+          get<string[]>(PREFS_KEY)
+        ]);
+
+        setProgrammes(scheduleData);
+        if (savedStats) setStats(savedStats);
+        if (savedPrefs) setFavorites(savedPrefs);
       } catch (error) {
-        console.error('Failed to load schedule:', error);
+        console.error('Failed to load data:', error);
       } finally {
         setLoading(false);
       }
@@ -91,44 +49,25 @@ export default function App() {
   }, []);
 
   const toggleFavorite = async (channelId: string) => {
-    if (!user) {
-      alert("Please sign in to save favorites!");
-      return;
-    }
     const newFavs = favorites.includes(channelId)
       ? favorites.filter(id => id !== channelId)
       : [...favorites, channelId];
-    
-    const prefsPath = `users/${user.uid}/preferences/main`;
-    try {
-      await setDoc(doc(db, prefsPath), { favoriteChannels: newFavs, uid: user.uid }, { merge: true });
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, prefsPath);
-    }
+    setFavorites(newFavs);
+    await set(PREFS_KEY, newFavs);
   };
 
   const handleCheckIn = async (p: Programme) => {
-    if (!user) {
-      alert("Please sign in to earn XP!");
-      return;
-    }
     const newXp = stats.xp + 50;
     const newLevel = Math.floor(newXp / 1000) + 1;
     const newStats = {
       ...stats,
       xp: newXp,
       level: newLevel,
-      lastCheckIn: new Date().toISOString(),
-      uid: user.uid
+      lastCheckIn: new Date().toISOString()
     };
-    
-    const statsPath = `users/${user.uid}/stats/main`;
-    try {
-      await setDoc(doc(db, statsPath), newStats);
-      setSelectedProgramme(null);
-    } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, statsPath);
-    }
+    setStats(newStats);
+    await set(STATS_KEY, newStats);
+    setSelectedProgramme(null);
   };
 
   if (loading) {
@@ -140,7 +79,7 @@ export default function App() {
           className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full"
         />
         <p className="text-white/40 font-mono text-xs uppercase tracking-widest animate-pulse">
-          Syncing with Cloud...
+          Initializing Offline Guide...
         </p>
       </div>
     );
@@ -151,9 +90,16 @@ export default function App() {
       <div className="flex flex-grow overflow-hidden">
         {/* Sidebar */}
         <nav className="w-20 bg-[#111] border-r border-white/10 flex flex-col items-center py-8 gap-8">
-          <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(37,99,235,0.4)]">
+          <button 
+            onClick={() => setView('epg')}
+            className={cn(
+              "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+              view === 'epg' ? "bg-blue-600 shadow-[0_0_20px_rgba(37,99,235,0.4)]" : "bg-white/5 opacity-40 hover:opacity-100"
+            )}
+          >
             <Tv size={20} />
-          </div>
+          </button>
+          
           <div className="flex flex-col gap-6 opacity-40">
             <button className="p-2 hover:opacity-100 transition-opacity"><Search size={20} /></button>
             <button className="p-2 hover:opacity-100 transition-opacity"><Calendar size={20} /></button>
@@ -161,50 +107,52 @@ export default function App() {
           </div>
           
           <div className="mt-auto flex flex-col gap-6 items-center pb-4">
-            {user ? (
-              <>
-                <div className="relative group">
-                  <img src={user.photoURL || ''} alt={user.displayName || ''} className="w-8 h-8 rounded-full border border-white/20" />
-                  <div className="absolute left-full ml-4 px-2 py-1 bg-black text-[10px] rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-50">
-                    {user.displayName}
-                  </div>
-                </div>
-                <button onClick={() => signOut()} className="p-2 opacity-40 hover:opacity-100 transition-opacity text-red-400">
-                  <LogOut size={20} />
-                </button>
-              </>
-            ) : (
-              <button onClick={() => signIn()} className="p-2 opacity-40 hover:opacity-100 transition-opacity text-blue-400">
-                <LogIn size={20} />
-              </button>
-            )}
+            <button 
+              onClick={() => setView('profile')}
+              className={cn(
+                "w-10 h-10 rounded-xl flex items-center justify-center transition-all",
+                view === 'profile' ? "bg-purple-600 shadow-[0_0_20px_rgba(147,51,234,0.4)]" : "bg-white/5 opacity-40 hover:opacity-100"
+              )}
+            >
+              <User size={20} />
+            </button>
             <button className="p-2 opacity-40 hover:opacity-100 transition-opacity"><Settings size={20} /></button>
           </div>
         </nav>
 
         {/* Main Content Area */}
         <main className="flex-grow flex flex-col overflow-hidden">
-          {user ? (
-            <GamificationHeader stats={stats} />
-          ) : (
-            <div className="px-6 py-4 bg-blue-600/10 border-b border-blue-500/20 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <User size={18} className="text-blue-400" />
-                <span className="text-sm font-medium">Sign in to track your viewing streak and earn XP!</span>
-              </div>
-              <button onClick={() => signIn()} className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 rounded-lg text-xs font-bold transition-all">
-                Sign In
-              </button>
-            </div>
-          )}
+          <GamificationHeader stats={stats} onProfileClick={() => setView('profile')} />
           
-          <div className="flex-grow relative">
-            <ProgrammeGrid 
-              programmes={programmes} 
-              onProgrammeSelect={setSelectedProgramme}
-              favorites={favorites}
-              toggleFavorite={toggleFavorite}
-            />
+          <div className="flex-grow relative overflow-hidden">
+            <AnimatePresence mode="wait">
+              {view === 'epg' ? (
+                <motion.div 
+                  key="epg"
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: 20 }}
+                  className="h-full"
+                >
+                  <ProgrammeGrid 
+                    programmes={programmes} 
+                    onProgrammeSelect={setSelectedProgramme}
+                    favorites={favorites}
+                    toggleFavorite={toggleFavorite}
+                  />
+                </motion.div>
+              ) : (
+                <motion.div 
+                  key="profile"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  className="h-full overflow-y-auto custom-scrollbar"
+                >
+                  <ProfileView stats={stats} favorites={favorites} />
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         </main>
       </div>
@@ -224,4 +172,8 @@ export default function App() {
       `}} />
     </div>
   );
+}
+
+function cn(...inputs: any[]) {
+  return inputs.filter(Boolean).join(' ');
 }

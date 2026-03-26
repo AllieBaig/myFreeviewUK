@@ -5,18 +5,22 @@ import { motion } from 'motion/react';
 
 interface GamificationHeaderProps {
   stats: UserStats;
+  onProfileClick: () => void;
 }
 
-export const GamificationHeader: React.FC<GamificationHeaderProps> = ({ stats }) => {
+export const GamificationHeader: React.FC<GamificationHeaderProps> = ({ stats, onProfileClick }) => {
   const xpToNextLevel = stats.level * 1000;
   const progress = (stats.xp % 1000) / 10;
 
   return (
     <div className="flex items-center justify-between px-6 py-4 bg-[#111] border-b border-white/10">
       <div className="flex items-center gap-6">
-        <div className="flex items-center gap-3">
+        <button 
+          onClick={onProfileClick}
+          className="flex items-center gap-3 group text-left transition-all hover:opacity-80"
+        >
           <div className="relative">
-            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center border-2 border-white/20 shadow-lg">
+            <div className="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center border-2 border-white/20 shadow-lg group-hover:scale-105 transition-transform">
               <User size={24} className="text-white" />
             </div>
             <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-yellow-500 flex items-center justify-center border-2 border-[#111] text-[10px] font-black text-black">
@@ -36,7 +40,7 @@ export const GamificationHeader: React.FC<GamificationHeaderProps> = ({ stats })
               <span className="text-[10px] font-mono opacity-40">{stats.xp % 1000} / 1000 XP</span>
             </div>
           </div>
-        </div>
+        </button>
 
         <div className="h-8 w-px bg-white/10" />
 
