@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Programme, UserStats } from './types';
-import { getTodaysSchedule, clearCache } from './services/offline';
+import { getTodaysSchedule } from './services/offline';
 import { ProgrammeGrid } from './components/ProgrammeGrid';
 import { GamificationHeader } from './components/GamificationHeader';
 import { ProgrammeDetail } from './components/ProgrammeDetail';
@@ -130,19 +130,6 @@ export default function App() {
     await set(STATS_KEY, newStats);
   };
 
-  const handleRefresh = async () => {
-    setLoading(true);
-    try {
-      await clearCache();
-      const scheduleData = await getTodaysSchedule();
-      setProgrammes(scheduleData);
-    } catch (error) {
-      console.error('Refresh failed:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   if (loading) {
     return (
       <div className="h-screen w-screen bg-[#0a0a0a] flex flex-col items-center justify-center gap-4">
@@ -215,11 +202,7 @@ export default function App() {
 
         {/* Main Content Area */}
         <main className="flex-grow flex flex-col overflow-hidden relative">
-          <GamificationHeader 
-            stats={stats} 
-            onProfileClick={() => setView('profile')} 
-            onRefresh={handleRefresh}
-          />
+          <GamificationHeader stats={stats} onProfileClick={() => setView('profile')} />
           
           {/* Offline Indicator */}
           <AnimatePresence>
