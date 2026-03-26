@@ -1,14 +1,15 @@
 import React from 'react';
-import { Trophy, Star, Zap, Flame, User } from 'lucide-react';
+import { Trophy, Star, Zap, Flame, User, RefreshCw } from 'lucide-react';
 import { UserStats } from '../types';
 import { motion } from 'motion/react';
 
 interface GamificationHeaderProps {
   stats: UserStats;
   onProfileClick: () => void;
+  onRefresh: () => void;
 }
 
-export const GamificationHeader: React.FC<GamificationHeaderProps> = ({ stats, onProfileClick }) => {
+export const GamificationHeader: React.FC<GamificationHeaderProps> = ({ stats, onProfileClick, onRefresh }) => {
   const xpToNextLevel = stats.level * 1000;
   const progress = (stats.xp % 1000) / 10;
 
@@ -57,6 +58,13 @@ export const GamificationHeader: React.FC<GamificationHeaderProps> = ({ stats, o
       </div>
 
       <div className="flex items-center gap-3">
+        <button 
+          onClick={onRefresh}
+          className="p-2 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-all text-white/40 hover:text-white"
+          title="Refresh Schedule"
+        >
+          <RefreshCw size={14} />
+        </button>
         <button className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg border border-white/10 transition-all text-xs font-bold">
           <Star size={14} className="text-yellow-500" />
           Quests
